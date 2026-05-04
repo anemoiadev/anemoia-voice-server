@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 
 const app = express();
-app.use(cors()); 
+app.use(cors());
 
 const server = http.createServer(app);
 
@@ -28,11 +28,11 @@ mongoose.connect(MONGO_URI)
 // ⟡ 2. СХЕМА ПРОФИЛЯ ПОЛЬЗОВАТЕЛЯ (ЧЕРТЕЖ)
 // ==========================================
 const userSchema = new mongoose.Schema({
-    cube_id: { type: String, required: true, unique: true }, 
-    nickname: { type: String, required: true },              
-    avatar: { type: String, default: '' },                   
-    status: { type: String, default: 'offline' },            
-    current_track: { type: Object, default: null }           
+    cube_id: { type: String, required: true, unique: true },
+    nickname: { type: String, required: true },
+    avatar: { type: String, default: '' },
+    status: { type: String, default: 'offline' },
+    current_track: { type: Object, default: null }
 });
 const User = mongoose.model('User', userSchema);
 
@@ -46,10 +46,18 @@ io.on('connection', (socket) => {
     socket.on('get-user', async (requestedId, callback) => {
         try {
             console.log(`Поиск агента в базе: ${requestedId}`);
-            const user = await User.findOne({ cube_id: requestedId });
+
+            // ❌ БЫЛО: Ищем точное и полное совпадение
+            // const user = await User.findOne({ cube_id: requestedId });
+
+            // ✅ СТАНЕТ: Ищем любой ID, который НАЧИНАЕТСЯ с запрошенного текста (Регулярное выражение)
+            const user = await User.findOne({
+                cube_id: { $regex: '^' + requestedId, $options: 'i' }
+            });
 
             if (user) {
                 callback({ success: true, profile: user });
+                // ... остальной код без изменений
             } else {
                 callback({ success: false, message: 'Пользователь не найден' });
             }
@@ -65,11 +73,11 @@ io.on('connection', (socket) => {
             await User.findOneAndUpdate(
                 { cube_id: userData.cube_id },
                 userData,
-                { upsert: true, new: true } 
+                { upsert: true, new: true }
             );
             console.log(`✅ Профиль обновлен в облаке: ${userData.nickname}`);
-        } catch (e) { 
-            console.error('Ошибка обновления профиля:', e); 
+        } catch (e) {
+            console.error('Ошибка обновления профиля:', e);
         }
     });
 
